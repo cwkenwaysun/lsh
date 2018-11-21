@@ -1,4 +1,9 @@
 def im_list(filename):
+    """
+    Read tsv file and return url list
+    :param filename: file path + file name
+    :return: list
+    """
     with open(filename) as f:
         # skip first line
         f.readline()
@@ -6,6 +11,3 @@ def im_list(filename):
 
 
 
-if __name__ == '__main__':
-    l = im_list('open-images-dataset-train0.tsv')
-    print(l)
