@@ -45,12 +45,13 @@ class LSHash(object):
         (optional) Whether to overwrite the matrices file if it already exist
     """
 
-    def __init__(self, hash_size, input_dim, num_hashtables=1,
+    def __init__(self, dim, l, m, w,
                  storage_config=None, matrices_filename=None, overwrite=False):
 
-        self.hash_size = hash_size
-        self.input_dim = input_dim
-        self.num_hashtables = num_hashtables
+        self.m = m
+        self.dim = dim
+        self.l = l
+        self.w = w
 
         if storage_config is None:
             storage_config = {'dict': None}
@@ -70,72 +71,33 @@ class LSHash(object):
             for li in list_list:
                 planes.append(li)
             #print(planes)
-            self.uniform_planes = planes
+            self.a = planes
 
             # hash table
             self.hash_tables = []
-            for i in range(self.num_hashtables):
+            for i in range(self.l):
                 self.hash_tables.append(storage(storage_config, i))
             #print('hash table', self.hash_tables)
 
         else:
-            self._init_uniform_planes()
+            self.a = [self._generate_uniform_planes()
+                                   for _ in range(self.l)]
             self._init_hashtables()
-
-    def _init_uniform_planes(self):
-        """ Initialize uniform planes used to calculate the hashes
-
-        if file `self.matrices_filename` exist and `self.overwrite` is
-        selected, save the uniform planes to the specified file.
-
-        if file `self.matrices_filename` exist and `self.overwrite` is not
-        selected, load the matrix with `np.load`.
-
-        if file `self.matrices_filename` does not exist and regardless of
-        `self.overwrite`, only set `self.uniform_planes`.
-        """
-
-        if "uniform_planes" in self.__dict__:
-            return
-
-
-        if self.matrices_filename:
-            file_exist = os.path.isfile(self.matrices_filename)
-            if file_exist and not self.overwrite:
-                try:
-                    npzfiles = np.load(self.matrices_filename)
-                except IOError:
-                    print("Cannot load specified file as a numpy array")
-                    raise
-                else:
-                    npzfiles = sorted(npzfiles.items(), key=lambda x: x[0])
-                    self.uniform_planes = [t[1] for t in npzfiles]
-            else:
-                self.uniform_planes = [self._generate_uniform_planes()
-                                       for _ in range(self.num_hashtables)]
-                try:
-                    np.savez_compressed(self.matrices_filename,
-                                        *self.uniform_planes)
-                except IOError:
-                    print("IOError when saving matrices to specificed path")
-                    raise
-        else:
-            self.uniform_planes = [self._generate_uniform_planes()
-                                   for _ in range(self.num_hashtables)]
+            #print(self.a)
+            self.b = np.random.rand(self.l, self.m) * self.w
 
     def _init_hashtables(self):
         """ Initialize the hash tables such that each record will be in the
         form of "[storage1, storage2, ...]" """
 
         self.hash_tables = [storage(self.storage_config, i)
-                            for i in range(self.num_hashtables)]
+                            for i in range(self.l)]
 
     def _generate_uniform_planes(self):
         """ Generate uniformly distributed hyperplanes and return it as a 2D
         numpy array.
         """
-
-        return np.random.randn(self.hash_size, self.input_dim)
+        return np.random.randn(self.m, self.dim)
 
     def _hash(self, planes, input_point):
         """ Generates the binary hash for `input_point` and returns it.
@@ -221,8 +183,7 @@ class LSHash(object):
             value = tuple(input_point)
 
         for i, table in enumerate(self.hash_tables):
-            table.append_val(self._hash(self.uniform_planes[i], input_point),
-                             value)
+            table.append_val(self._hash(self.a[i], input_point), value)
 
     def query(self, query_point, num_results=None, distance_func=None):
         """ Takes `query_point` which is either a tuple or a list of numbers,
@@ -253,7 +214,7 @@ class LSHash(object):
                 raise ImportError(" Bitarray is required for hamming distance")
 
             for i, table in enumerate(self.hash_tables):
-                binary_hash = self._hash(self.uniform_planes[i], query_point)
+                binary_hash = self._hash(self.a[i], query_point)
                 for key in table.keys():
                     distance = LSHash.hamming_dist(key, binary_hash)
                     if distance < 2:
@@ -277,7 +238,7 @@ class LSHash(object):
                 raise ValueError("The distance function name is invalid.")
 
             for i, table in enumerate(self.hash_tables):
-                binary_hash = self._hash(self.uniform_planes[i], query_point)
+                binary_hash = self._hash(self.a[i], query_point)
                 #print('286', binary_hash)
                 #print(table.get_list(binary_hash)[0])
                 candidates.update(table.get_list(binary_hash))
@@ -290,10 +251,10 @@ class LSHash(object):
         return candidates[:num_results] if num_results else candidates
 
     def upload(self, db):
-        #for i in range(self.num_hashtables):
-        #    db['table'+str(i)].insert_one(self.hash_tables[i].storage)
-        #db['planes'].insert_one({'planes': [narray.tolist() for narray in self.uniform_planes]})
-        #print(self.uniform_planes)
+        for i in range(self.l):
+            db['table'+str(i)].insert_one(self.hash_tables[i].storage)
+        db['planes'].insert_one({'planes': [narray.tolist() for narray in self.a]})
+        print(self.a)
         pass
 
 

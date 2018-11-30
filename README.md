@@ -14,3 +14,5 @@ Source: [open-images-dataset](https://github.com/cvdfoundation/open-images-datas
 * query
 
 ## Hash / MinHash?
+
+## MongoDB altas
