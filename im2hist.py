@@ -52,7 +52,7 @@ def hist_64(im):
     :param im: image array
     :return: length 64 list, mean 64 dimension histogram from im
     """
-    hist = cv2.calcHist(im, [0, 1, 2], None, [4, 4, 4], [0, 256, 0, 256, 0, 256])
+    hist = cv2.calcHist([im], [0, 1, 2], None, [4, 4, 4], [0, 256, 0, 256, 0, 256])
     #hist = cv2.calcHist(im, [2], None, [256], [0.0, 255.0])
     return list(map(int, hist.flatten()))
 
