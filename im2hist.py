@@ -1,13 +1,11 @@
 import cv2
 import numpy as np
-import pymongo
-import config
 from urllib import request, error
 
 def get_bgr_hist(im):
     """
     :param im: image object from cv2.imread
-    :return: 3x256 list
+    :return: (3x256 list) histogram
     """
     res = []
     for i in [0, 1, 2]:
@@ -18,21 +16,11 @@ def get_bgr_hist(im):
 
     return res
 
-
-def connect():
-    """
-    Create pymongo client and return lsh db
-    """
-    client = pymongo.MongoClient(config.DATABASE['link'])
-    db = client.lsh
-    return db
-
-
 def im_request(url):
     """
     Get image array by request url. Return None if the image is not usable(PNG).
-    :param url: string
-    :return: None or image array
+    :param url: (string)
+    :return: (None or image array)
     """
     try:
         resp = request.urlopen(url)
@@ -46,11 +34,10 @@ def im_request(url):
         image = cv2.imdecode(image, cv2.IMREAD_COLOR)
     return image
 
-
 def hist_64(im):
     """
-    :param im: image array
-    :return: length 64 list, mean 64 dimension histogram from im
+    :param im: image object
+    :return: (1x64 list) 64 dimension histogram from im
     """
     hist = cv2.calcHist([im], [0, 1, 2], None, [4, 4, 4], [0, 256, 0, 256, 0, 256])
     #hist = cv2.calcHist(im, [2], None, [256], [0.0, 255.0])

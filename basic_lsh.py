@@ -64,7 +64,6 @@ class BasicLSH:
         hvs = self.input_to_hash(self.hash(point))
         seen = set()
         for i, table in enumerate(self.hash_tables):
-            candidates = []
             if hvs[i] in table:
                 for candidate in table[hvs[i]]:
                     seen.add(candidate)
