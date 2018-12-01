@@ -9,11 +9,9 @@ class BasicLSH:
         self.l = l
         self.m = m
         self.w = w
-
         self.a = [self._generate_uniform_planes()
                   for _ in range(self.l)]
         self.b = np.random.rand(self.l, self.m) * self.w
-
         self.hash_tables = [{} for _ in range(self.l)]
 
     def _generate_uniform_planes(self):
@@ -22,7 +20,13 @@ class BasicLSH:
         """
         return np.random.randn(self.m, self.dim)
 
-    def insert(self, point, extra_data=None):
+    def insert(self, point, extra_data):
+        """
+        Insert input point to each hash tables. The hash keys are strings from self.input_to_hash.
+        :param point: (list) input points
+        :param extra_data: () any form of distinct data for each
+        :return: None
+        """
         hvs = self.input_to_hash(self.hash(point))
         for i, table in enumerate(self.hash_tables):
             hv = hvs[i]
@@ -31,6 +35,9 @@ class BasicLSH:
             table[hv].append(extra_data)
 
     def input_to_hash(self, keys):
+        """
+        Return string version of keys. List is not good for being hashing key.
+        """
         basic_keys = []
         for i, key in enumerate(keys):
             s = ''
@@ -41,6 +48,9 @@ class BasicLSH:
         return basic_keys
 
     def hash(self, point):
+        """
+        Hash input point into a list of numbers based on the setting.
+        """
         hvs = []
         for i in range(self.l):
             s = []

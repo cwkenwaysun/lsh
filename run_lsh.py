@@ -9,7 +9,7 @@ res = []
 lsh = LSHash(64, 15, 16, 0.7)
 
 col = db.images2
-for im in col.find()[:38000]:
+for im in col.find()[:40000]:
     lsh.index(im['hists'], im['im_url'])
 #lsh.upload(db)
 

@@ -1,10 +1,16 @@
 from queue import PriorityQueue
 from basic_lsh import BasicLSH
 import numpy as np
-from operator import add
+
 
 class PerturbSet:
     def __init__(self, ps, score):
+        """
+        PerturbSet is just a structure used to combine perturbation sequence and its score
+
+        :param ps: (dict) perturbation sequence track in paper. e.g. {1:True, 3:True}
+        :param score: (float) smaller scores have higher probability to be near to query point
+        """
         self.ps = ps
         self.score = score
 
@@ -17,16 +23,23 @@ class PerturbSet:
     def __repr__(self):
         return self.__str__()
 
-class MultiprobeLSH(BasicLSH):
 
+class MultiprobeLSH(BasicLSH):
     def __init__(self, dim, l, m, w, t):
         """
+        MultiprobeLSH is a faster solution to apply similar search in LSH.
+        This class will generate a LSH structure, with perturbing sequence defined in the paper.
 
         :param dim: diminsionality of the data
         :param l: number of hash
         :param m: number of hash values to concatenate to form the key to the hash tables
         :param w: bucket size
         :param t: number of perturbation vectors that will be applied to each query
+
+        CAll:
+            mp = MultiprobeLSH(dim=64, l=15, m=16, w=40, t=1000)
+            mp.insert(point, extra_data_or_id)
+            mp.query(query_point, num_result)
         """
         super().__init__(dim, l, m, w)
         self.t = t
@@ -39,6 +52,10 @@ class MultiprobeLSH(BasicLSH):
         self.init_probe_sequence()
 
     def init_probe_sequence(self):
+        """
+        Initialize probing sequence. Please refer to paper for more detail.
+        :return: None
+        """
         m = self.m
         score = self.scores
 
@@ -55,6 +72,9 @@ class MultiprobeLSH(BasicLSH):
 
     @staticmethod
     def expand(ps):
+        """
+        E.g. {1:True} => {1:True, 2:True}
+        """
         mx = 0
         for i in ps:
             mx = max(mx, i)
@@ -65,6 +85,9 @@ class MultiprobeLSH(BasicLSH):
 
     @staticmethod
     def shift(ps):
+        """
+        E.g. {1:True, 2:True} => {1:True, 3:True}
+        """
         mx = 0
         for i in ps:
             mx = max(mx, i)
@@ -74,7 +97,13 @@ class MultiprobeLSH(BasicLSH):
         nx[mx + 1] = True
         return nx
 
-    def is_valid(self, perturbset, m):
+    def is_valid(self, perturbset):
+        """
+        No two perturbation on one index, and key in perturb set should larger then 2m.
+        Otherwise is valid.
+        :return: (bool)
+        """
+        m = self.m
         ps = perturbset.ps
         for key in ps:
             if 2 * m + 1 - key in ps:
@@ -84,10 +113,12 @@ class MultiprobeLSH(BasicLSH):
         return True
 
     def gen_perturbing_sets(self):
+        """
+        Generate t valid perturbing sets. E.g. One set looks like {1: True, 2:True} with its score.
+        """
         pq = PriorityQueue()
         start = {1: True}
         pq.put(PerturbSet(start, self.get_score(start)))
-        #print(pq.queue[0])
 
         for i in range(self.t):
             counter = 0
@@ -99,7 +130,7 @@ class MultiprobeLSH(BasicLSH):
                 next_expand = self.expand(top.ps)
                 pq.put(PerturbSet(next_expand, self.get_score(next_expand)))
 
-                if self.is_valid(pq.queue[0], self.m): # top
+                if self.is_valid(pq.queue[0]): # top
                     self.perturb_sets.append(pq.queue[0])
                     break
 
@@ -108,6 +139,9 @@ class MultiprobeLSH(BasicLSH):
                 counter += 1
 
     def gen_perturbing_vectors(self):
+        """
+        Using perturbing sets to generate perturbing vector.
+        """
         perms = []
 
         for i in range(self.l):
@@ -116,7 +150,6 @@ class MultiprobeLSH(BasicLSH):
 
 
         for pso in self.perturb_sets:
-            #print(pso)
             perturb_vec = []
             for j in range(self.l):
                 vec = [0 for _ in range(self.m)]
@@ -130,34 +163,26 @@ class MultiprobeLSH(BasicLSH):
                         vec[mapped_ind] = 1
                 perturb_vec.append(vec)
             self.perturb_vecs.append(perturb_vec)
-        #print(self.perturb_vecs)
 
     def get_score(self, ps):
+        """
+        The summation of each chosen set. For more detail please refer to paper.
+        :param ps: perturbing sets
+        :return: (float)
+        """
         score = 0
         for j in ps:
             score += self.scores[j-1]
         return score
 
-    def hash2(self, planes, input_point):
-        try:
-            input_point = np.array(input_point)  # for faster dot product
-            projections = np.dot(planes, input_point)
-        except TypeError as e:
-            print("""The input point needs to be an array-like object with
-                  numbers only elements""")
-            raise
-        except ValueError as e:
-            print("""The input point needs to be of the same dimension as
-                  `input_dim` when initializing this LSHash instance""", e)
-            raise
-        else:
-            return projections
-
-    def query(self, q, num_results=None, distance_func=None):
-
+    def query(self, q, num_results=None):
+        """
+        Get k neighbors of query point.
+        :param q: () input data used when insert
+        :param num_results: (int) the 'K' in KNN
+        :return: (list) extra_data when insert
+        """
         base_key = self.hash(q)
-        #print('base_key', base_key)
-        #print('per_vec', self.perturb_vecs)
 
         candidates = set()
         for i in range(len(self.perturb_vecs) + 1):
@@ -165,9 +190,7 @@ class MultiprobeLSH(BasicLSH):
             if i != 0:
                 perturbed_table_keys = self.perturb(base_key, self.perturb_vecs[i-1])
 
-            #print("new_vec", perturbed_table_keys)
-
-            results = self.query_helper(perturbed_table_keys, candidates)
+            results = self.query_helper(perturbed_table_keys)
 
             for result in results:
                 candidates.add(result)
@@ -176,15 +199,13 @@ class MultiprobeLSH(BasicLSH):
                 return list(candidates)[:num_results]
         return list(candidates)
 
-    @staticmethod
-    def str_intersection(str1, str2):
-        count = 0
-        for i, c in enumerate(str1):
-            if str1[i] == str2[i]:
-                count += 1
-        return count
 
-    def query_helper(self, table_keys, results):
+    def query_helper(self, table_keys):
+        """
+        Return the value from key(str) generated by hashing function.
+        :param table_keys: perturbing vector
+        :return:
+        """
         hvs = self.input_to_hash(table_keys)
         seen = set()
         for i, table in enumerate(self.hash_tables):
@@ -195,6 +216,12 @@ class MultiprobeLSH(BasicLSH):
         return list(seen)
 
     def perturb(self, base_key, perturbation):
+        """
+        Generate table key with base_key and perturbation, by adding perturbation to the base key.
+        :param base_key: the base key from hash table and query point
+        :param perturbation: perturbing vector
+        :return: (list) new perturbing key for each hash table
+        """
         if len(base_key) != len(perturbation):
             raise ValueError("Number tables does not match with number of perturb vecs")
         perturbed_table_key = []
@@ -202,8 +229,8 @@ class MultiprobeLSH(BasicLSH):
             perturbed_table_key.append((np.array(base_key[i]) + p).tolist())
         return perturbed_table_key
 
-# test code: try different t
 
+# test code: try different t
 """
 mp = MultiprobeLSH(dim=10, l=7, m=3, w=5.0, t=1)
 

@@ -5,11 +5,11 @@ import time
 db = connect()
 col = db.images2
 
-mp = MultiprobeLSH(dim=64, l=15, m=16, w=50, t=1000)
+mp = MultiprobeLSH(dim=64, l=15, m=16, w=40, t=1000)
 #for pv in mp.perturb_vecs:
 #    print(pv)
 
-for im in col.find()[:3000]:
+for im in col.find().limit(200):
     mp.insert(im['hists'], im['im_url'])
 
 
