@@ -1,5 +1,5 @@
-from lshash import LSHash
-from im2hist import connect
+from basic_lsh import BasicLSH
+from config import connect
 import time
 from actual_knn import accuracy
 
@@ -7,12 +7,12 @@ db = connect()
 res = []
 
 
-lsh = LSHash(64, 15, 16, 0.7)
+lsh = BasicLSH(dim=64, l=15, m=16, w=40)
 
 col = db.images2
-for im in col.find()[:50000]:
-    lsh.index(im['hists'], im['im_url'])
-#lsh.upload(db)
+
+for im in col.find().limit(500):
+    lsh.insert(im['hists'], im['im_url'])
 
 start = time.time()
 #res = lsh.query([11.164474487304688, 0.05191167195638021, 0.0, 0.0, 2.5472323099772134, 1.4715194702148438,
@@ -27,21 +27,12 @@ q = [ 8.430374208301183, 11.93651740933642, 1.0203922726980452, 0.0, 0.301766101
                   0.0017707730516975308, 0.07867381405928497, 0.04077801488554527, 0.002838260352366255, 0.0074849697788065845, 1.6137707871174125, 8.840502829218106, 0.8717101297260802, 0.0, 0.0010800459747942388, 0.19690745161394033, 0.6277076501414609, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0674873006687242E-4, 0.002398706757973251, 0.43380800098058125, 0.05282806270897634, 3.139668531378601E-5, 4.646709426440329E-4, 1.0131961524241255, 11.726115662374614 ]
 
 k = 10
-res = lsh.query(q, k)
+res = lsh.query(q)
 end = time.time()
 print(end-start)
 
 for r in res:
-    print(r[0][1], r[1])
+    print(res)
 
 # Print accuracy:
-accuracy(q, 10, res)
-
-'''
-lsh = LSHash(6, 8, 5)
-lsh.index([1,2,3,4,5,6,7,8])
-lsh.index([2,3,4,5,6,7,8,9])
-lsh.index([10,12,99,1,5,31,2,3])
-lsh.index([10,11,99,1,5,31,2,3])
-res = lsh.query([1,2,3,4,5,6,7,7], 3)
-'''
+#accuracy(q, 10, res)
