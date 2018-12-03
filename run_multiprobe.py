@@ -1,16 +1,25 @@
 from multiprobe_lsh import MultiprobeLSH
 from config import connect
 import time
-
-db = connect()
-col = db.images2
-
-mp = MultiprobeLSH(dim=64, l=15, m=16, w=30, t=1000)
-
-for im in col.find():
-    mp.insert(im['hists'], im['im_url'])
+import os.path
+import pickle
 
 
+if not os.path.isfile('tables.pickle'):
+    db = connect()
+    col = db.images2
+    mp = MultiprobeLSH(dim=64, l=15, m=16, w=20, t=10000)
+
+    for im in col.find():
+        mp.insert(im['hists'], im['im_url'])
+
+    file = open('tables.pickle', 'wb')
+    pickle.dump(mp, file)
+    file.close()
+
+else:
+    with open('tables.pickle', 'rb') as file:
+        mp = pickle.load(file)
 
 
 start = time.time()
